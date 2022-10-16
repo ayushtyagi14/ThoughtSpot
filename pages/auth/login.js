@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import { useAuthState } from 'react-firebase-hooks/auth'
 import { useEffect } from 'react';
 
-export default function login() {
+export default function Login() {
     const [user, loading] = useAuthState(auth)
 
     const router = useRouter()
