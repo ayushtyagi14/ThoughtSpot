@@ -1,0 +1,97 @@
+import Message from "../components/message"
+import { useRouter } from "next/router"
+import { useState, useEffect } from "react"
+import { auth, db } from "../utils/firebase"
+import { toast } from "react-toastify"
+import {
+    arrayUnion,
+    doc,
+    getDoc,
+    onSnapshot,
+    orderBy,
+    query,
+    Timestamp,
+    updateDoc,
+} from "firebase/firestore"
+
+export default function Details() {
+    const router = useRouter()
+    const routerData = router.query;
+
+    const [message, setMessage] = useState("")
+    const [allMessage, setAllMessage] = useState([])
+
+    const submitMessage = async () => {
+        if (!auth.currentUser) {
+            return router.push("/auth/login")
+        }
+
+        if (!message) {
+            toast.error("Don't leave an empty message 😅", {
+                position: toast.POSITION.TOP_CENTER,
+                autoClose: 2000
+            })
+            return;
+        }
+        const docRef = doc(db, "posts", routerData.id);
+        await updateDoc(docRef, {
+            comments: arrayUnion({
+                message,
+                avatar: auth.currentUser.photoURL,
+                userName: auth.currentUser.displayName,
+                time: Timestamp.now()
+            })
+        })
+        setMessage("");
+    };
+
+    const getComments = async () => {
+        const docRef = doc(db, "posts", routerData.id);
+        const unsubscribe = onSnapshot(docRef, (snapshot) => {
+            setAllMessage(snapshot.data().comments);
+        });
+        return unsubscribe;
+    };
+
+    useEffect(() => {
+        if (!router.isReady) return;
+        getComments();
+    }, [router.isReady]);
+
+    return (
+        <div className="pt-5">
+            <Message {...routerData} ></Message>
+            <div className="my-4">
+                <div className="flex">
+                    <input
+                        type="text"
+                        className="bg-gray-800 w-full p-2 text-white text-sm"
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="Send a message 😀"
+                    />
+                    <button
+                        className="bg-cyan-500 text-white py-2 px-4 text-sm"
+                        onClick={submitMessage}
+                    >
+                        Send
+                    </button>
+                </div>
+                <div className="py-6">
+                    <h2 className="font-bold">Comments</h2>
+                    {allMessage?.map((message) => (
+                        <div className="bg-white p-4 my-4 border-2" key={message.time}>
+                            <div className="flex items-center gap-2 mb-4 bg-white">
+                                <img className="w-10 rounded-full" src={message.avatar} alt="avatar" />
+                                <h2 className="bg-white"> {message.userName} </h2>
+                            </div>
+                            <div className="bg-white">
+                                {message.message}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    )
+};
